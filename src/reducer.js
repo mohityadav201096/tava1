@@ -1,0 +1,69 @@
+// App-wide state reducer.
+import { SAMPLE_SAVED } from './meals.js';
+
+export const initialState = {
+  screen: 'home',
+  ingredients: ['paneer', 'onion', 'tomato'],
+  pantry: ['rice', 'atta', 'ginger', 'garlic', 'turmeric', 'cumin'],
+  filters: { diet: [], goals: [], cuisine: 'Any' },
+  meals: [],
+  generating: false,
+  feedback: {},
+  saved: SAMPLE_SAVED.map((m) => ({ ...m })),
+  prefs: {
+    diet: 'Veg',
+    cuisine: 'North Indian',
+    household: 2,
+    pantryMemory: true,
+    avoidRepeats: true,
+    quickDefault: false,
+  },
+  pendingGenerate: false,
+  toast: null,
+  openMeal: null,
+};
+
+export function reducer(state, action) {
+  switch (action.type) {
+    case 'hydrate':
+      return { ...state, ...action.value };
+    case 'goto':
+      return { ...state, screen: action.screen, pendingGenerate: action.trigger === 'generate' };
+    case 'setIngredients':
+      return { ...state, ingredients: action.items };
+    case 'addToPantry': {
+      const set = new Set(state.pantry);
+      action.items.forEach((i) => set.add(i));
+      return { ...state, pantry: [...set] };
+    }
+    case 'removePantry':
+      return { ...state, pantry: state.pantry.filter((p) => p !== action.item) };
+    case 'setFilters':
+      return { ...state, filters: action.filters };
+    case 'generate':
+      return { ...state, generating: true, pendingGenerate: false };
+    case 'doneGenerate':
+      return { ...state, generating: false, meals: action.meals };
+    case 'toggleSave': {
+      const exists = state.saved.find((s) => s.name === action.meal.name);
+      const saved = exists
+        ? state.saved.filter((s) => s.name !== action.meal.name)
+        : [action.meal, ...state.saved];
+      return { ...state, saved, toast: exists ? 'Removed from saved' : 'Saved to your collection' };
+    }
+    case 'setFeedback':
+      return { ...state, feedback: { ...state.feedback, [action.meal.name]: action.value } };
+    case 'setPref':
+      return { ...state, prefs: { ...state.prefs, [action.key]: action.value } };
+    case 'openMeal':
+      return { ...state, openMeal: action.meal };
+    case 'closeMeal':
+      return { ...state, openMeal: null };
+    case 'toast':
+      return { ...state, toast: action.text };
+    case 'clearToast':
+      return { ...state, toast: null };
+    default:
+      return state;
+  }
+}

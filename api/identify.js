@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
   const prompt = [
     'Look at this image of a kitchen, fridge, or ingredients.',
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
   ].join('\n');
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const r = await fetch(url, {
       method: 'POST',

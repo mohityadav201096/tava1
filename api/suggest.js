@@ -5,7 +5,7 @@
 //
 // Set GEMINI_API_KEY in your Vercel project → Environment Variables.
 // Optional: GEMINI_MODEL (default: gemini-2.0-flash)
-
+// updated
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });

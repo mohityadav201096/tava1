@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.75,
+          temperature: 0.7,
           responseMimeType: 'application/json',
         },
       }),
@@ -59,22 +59,17 @@ export default async function handler(req, res) {
 
     const data = await r.json();
     let text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-
-    // Strip markdown code fences if model wraps output anyway
     text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
     let meals;
     try {
       meals = JSON.parse(text);
     } catch {
-      // Try to extract JSON array from partial response
       const match = text.match(/\[[\s\S]*\]/);
       meals = match ? JSON.parse(match[0]) : [];
     }
 
     if (!Array.isArray(meals)) meals = [];
-
-    // Normalise field names (Gemini sometimes uses snake_case variations)
     meals = meals.map(normaliseMeal).filter(Boolean);
 
     return res.status(200).json({ meals });
@@ -90,71 +85,93 @@ function buildPrompt({ ingredients, pantry, filters, prefs, feedback, recentMeal
   const { diet: filterDiet = [], goals = [], cuisine: filterCuisine = 'Any' } = filters;
   const { diet: prefDiet = 'Veg', cuisine: prefCuisine = 'Any', household = 2 } = prefs;
 
-  // Collect disliked meal names from feedback
   const disliked = Object.entries(feedback || {})
     .filter(([, v]) => v === 'down')
     .map(([name]) => name);
 
-  // Meals to skip (recently seen + disliked)
   const skipList = [...new Set([...(recentMeals || []), ...disliked])].slice(0, 20);
 
-  // Resolve effective diet and cuisine
   const effectiveDiet = filterDiet.length ? filterDiet.join(', ') : prefDiet || 'any';
   const effectiveCuisine =
     filterCuisine !== 'Any' ? filterCuisine :
     prefCuisine !== 'Any' ? prefCuisine : 'any Indian';
 
   const pantryLine = pantry.length
-    ? `Pantry staples always on hand: ${pantry.join(', ')}`
-    : 'Assume standard Indian pantry: salt, oil, ghee, turmeric, cumin, coriander powder, garam masala, ginger, garlic, green chilli';
-
-  const goalsLine = goals.length ? goals.join(', ') : 'none specified';
+    ? `Standard pantry always available: ${pantry.join(', ')}, plus common spices (salt, oil, turmeric, cumin, coriander powder, garam masala, chilli powder, mustard seeds)`
+    : 'Assume standard Indian pantry: salt, oil, turmeric, cumin, coriander powder, garam masala, chilli powder';
 
   const skipLine = skipList.length
-    ? `\nAVOID suggesting these meals (already seen or disliked by user): ${skipList.join(', ')}`
+    ? `\nDo NOT suggest any of these (already seen or disliked): ${skipList.join(', ')}`
     : '';
 
-  return `You are a warm, knowledgeable Indian cooking assistant helping a home cook decide what to make right now.
+  const ingredientList = ingredients.length
+    ? ingredients.join(', ')
+    : '(none — suggest versatile pantry meals using the staples above)';
 
-## KITCHEN STATE
-Ingredients available right now: ${ingredients.length ? ingredients.join(', ') : '(none listed — suggest versatile pantry meals)'}
+  return `You are an expert Indian cooking assistant helping a home cook decide what to make RIGHT NOW with what they have.
+
+## WHAT THEY HAVE
+Primary ingredients available: ${ingredientList}
 ${pantryLine}
-Household size: ${household} ${household === 1 ? 'person' : 'people'}
 Diet: ${effectiveDiet}
 Cuisine preference: ${effectiveCuisine}
-Cooking goals: ${goalsLine}${skipLine}
+Household size: ${household} ${household === 1 ? 'person' : 'people'}
+Cooking goals: ${goals.length ? goals.join(', ') : 'none'}${skipLine}
 
-## YOUR TASK
-Suggest exactly 5 meal ideas that this person can realistically cook tonight. Maximise use of their available ingredients. Be creative within the constraints — don't just default to the most obvious meals.
+## ⚠️ THE MOST IMPORTANT RULE — READ CAREFULLY
+The available PRIMARY INGREDIENTS must be the STAR of each suggested meal.
+A meal is only valid if the user's listed ingredients form the core, essential base of that dish.
 
-## STRICT RULES
-1. Prioritise meals that use the most listed ingredients. Mention them specifically in "matches".
-2. "missing_ingredients" must be realistic, easy-to-buy items — maximum 3 per meal.
-3. Cook time must be accurate. Do NOT say "20 min" for a dish that takes 45.
-4. Vary the suggestions: mix meal types (sabzi, dal, rice dish, bread-based, snack) and cuisines when possible.
-5. "reason" must be warm, specific, and name the actual ingredients ("Uses your paneer and wilting spinach" not "A great choice").
-6. "steps" must be 3–5 clear, actionable cooking instructions — not vague summaries.
-7. "yt_search" must be a specific, well-chosen YouTube search query that will surface a great home-cooking video for this recipe. Include "recipe" and a style hint (e.g. "quick", "authentic", "street style").
-8. Never include meals from the AVOID list above.
-9. Respect the diet preference strictly — if diet is "Veg", return only Veg meals.
+CORRECT examples when user has [paneer, onion, tomato]:
+✓ Paneer Bhurji — paneer is the main ingredient
+✓ Paneer Tikka — paneer is the main ingredient  
+✓ Matar Paneer — paneer + tomato are core (peas can be "missing")
+✓ Onion Tomato Sabzi — onion + tomato are the whole dish
 
-## JSON SCHEMA
-Return ONLY a JSON array of exactly 5 objects. No markdown, no explanation, no wrapper keys.
+WRONG examples for the same input:
+✗ Chicken Curry — chicken is the core ingredient but NOT in their list
+✗ Dal Tadka — dal is the core but NOT in their list
+✗ Rajma — rajma is the core but NOT in their list
+✗ Biryani — needs many missing core ingredients
+
+## MISSING INGREDIENTS RULE
+"missing_ingredients" must ONLY contain minor supporting items such as:
+- A garnish (coriander leaves, kasuri methi, cream)
+- A specific spice they might not have (rasam powder, chana masala)
+- A small add-on (peas, one vegetable to bulk out a dish)
+
+missing_ingredients must NEVER contain:
+- The main protein (chicken, paneer, eggs, fish)
+- The main carb base (rice, dal, flour, bread)
+- A large vegetable that IS the dish (eggplant in baingan bharta, etc.)
+
+Maximum 2 missing ingredients per meal. If a dish needs more than 2 things not in their list, do NOT suggest it.
+
+## ADDITIONAL RULES
+1. Vary the suggestions — mix meal types and avoid repetition.
+2. Cook time must be accurate and realistic.
+3. "reason" must name their actual ingredients warmly ("Uses your wilting spinach and paneer").
+4. Steps must be 3–5 clear, actionable instructions.
+5. Respect the diet filter strictly.
+6. Write a specific YouTube search query that will find a great home-cooking video.
+
+## JSON OUTPUT
+Return ONLY a JSON array of exactly 5 objects. No markdown, no explanation.
 
 [
   {
-    "meal_name": "string — proper name of the dish",
-    "cook_time": "string — e.g. '22 min' or '1 hr'",
+    "meal_name": "string",
+    "cook_time": "string (e.g. '20 min')",
     "protein": "High" | "Med" | "Low",
     "cuisine": "North Indian" | "South Indian" | "Street Food" | "Chinese-Indian" | "Breakfast" | "Continental" | "Mixed",
     "diet": "Veg" | "Non-Veg" | "Egg" | "Vegan",
     "tags": ["Quick", "High Protein", "Comfort", "One-pot", "Light"],
-    "matches": ["ingredient1", "ingredient2"],
-    "missing_ingredients": ["item1", "item2"],
-    "reason": "One warm, specific sentence mentioning their actual ingredients.",
-    "steps": ["Step 1 — full instruction.", "Step 2.", "Step 3.", "Step 4.", "Step 5."],
-    "ingredients": ["200g paneer", "1 large onion, finely chopped", "..."],
-    "yt_search": "specific YouTube search query string"
+    "matches": ["ingredient from their list used in this dish"],
+    "missing_ingredients": ["minor item 1", "minor item 2"],
+    "reason": "Warm, specific sentence naming their actual ingredients.",
+    "steps": ["Step 1.", "Step 2.", "Step 3.", "Step 4."],
+    "ingredients": ["quantity + ingredient name", "..."],
+    "yt_search": "specific YouTube search query for this exact recipe"
   }
 ]`;
 }

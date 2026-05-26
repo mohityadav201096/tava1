@@ -46,7 +46,6 @@ export default async function handler(req, res) {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          responseMimeType: 'application/json',
         },
       }),
     });

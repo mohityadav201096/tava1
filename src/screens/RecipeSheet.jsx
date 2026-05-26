@@ -51,31 +51,41 @@ export function RecipeSheet({ meal, onClose, saved, onSave }) {
           </div>
         </div>
 
-        {/* YouTube preview */}
+        {/* YouTube — opens YouTube search in new tab */}
         <div className="px-5 pt-4 pb-1.5">
-          <div
-            className="tap relative rounded-[var(--r-lg)] overflow-hidden cursor-pointer border border-line"
-            style={{ background: '#1a1a1a', aspectRatio: '16/9' }}
-          >
-            <div className="absolute inset-0 grid place-items-center" style={{ background: videoBg }}>
+          {(() => {
+            const ytQuery = meal.yt_search || meal.yt || (meal.name + ' Indian recipe');
+            const ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(ytQuery);
+            const openYT = () => { window.open(ytUrl, '_blank', 'noopener,noreferrer'); };
+            return (
               <div
-                className="w-14 h-14 rounded-full grid place-items-center text-white"
-                style={{
-                  background: 'rgba(220,40,40,0.95)',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-                }}
+                role="button"
+                tabIndex={0}
+                onClick={openYT}
+                onKeyDown={(e) => e.key === 'Enter' && openYT()}
+                className="tap relative rounded-[var(--r-lg)] overflow-hidden border border-line cursor-pointer"
+                style={{ background: '#1a1a1a', aspectRatio: '16/9' }}
+                aria-label={'Watch ' + meal.name + ' recipe on YouTube'}
               >
-                <Icons.Play size={22} />
+                <div className="absolute inset-0 grid place-items-center" style={{ background: videoBg }}>
+                  <div
+                    className="w-14 h-14 rounded-full grid place-items-center text-white"
+                    style={{ background: 'rgba(220,40,40,0.95)', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
+                  >
+                    <Icons.Play size={22} />
+                  </div>
+                </div>
+                <div
+                  className="absolute left-3 bottom-2.5 right-3 text-white text-[13.5px] font-medium flex items-center gap-1.5"
+                  style={{ textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}
+                >
+                  <Icons.Yt size={20} />
+                  <span className="flex-1 truncate">{ytQuery}</span>
+                  <span className="text-[11px] opacity-70 font-mono shrink-0">Watch ↗</span>
+                </div>
               </div>
-            </div>
-            <div
-              className="absolute left-3 bottom-2.5 right-3 text-white text-[13.5px] font-medium flex items-center gap-1.5"
-              style={{ textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}
-            >
-              <Icons.Yt size={20} />
-              <span className="flex-1">{meal.yt || meal.name}</span>
-            </div>
-          </div>
+            );
+          })()}
         </div>
 
         {/* Tabs */}

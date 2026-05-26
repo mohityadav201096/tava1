@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   } = body || {};
 
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   if (!apiKey) {
     return res.status(200).json({
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
   const prompt = buildPrompt({ ingredients, pantry, filters, prefs, feedback, recentMeals });
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

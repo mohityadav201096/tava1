@@ -3,8 +3,8 @@ import { SAMPLE_SAVED } from './meals.js';
 
 export const initialState = {
   screen: 'home',
-  ingredients: ['paneer', 'onion', 'tomato'],
-  pantry: ['rice', 'atta', 'ginger', 'garlic', 'turmeric', 'cumin'],
+  ingredients: ['paneer', 'onion', 'tomato'],  // overwritten by localStorage hydration on load
+  pantry: ['rice', 'atta', 'ginger', 'garlic', 'turmeric', 'cumin', 'coriander powder', 'salt', 'oil'],
   filters: { diet: [], goals: [], cuisine: 'Any' },
   meals: [],
   generating: false,
@@ -18,6 +18,7 @@ export const initialState = {
     avoidRepeats: true,
     quickDefault: false,
   },
+  recentMeals: [],      // meal names suggested recently — used to avoid repeats
   pendingGenerate: false,
   toast: null,
   openMeal: null,
@@ -27,42 +28,73 @@ export function reducer(state, action) {
   switch (action.type) {
     case 'hydrate':
       return { ...state, ...action.value };
+
     case 'goto':
       return { ...state, screen: action.screen, pendingGenerate: action.trigger === 'generate' };
+
     case 'setIngredients':
       return { ...state, ingredients: action.items };
+
     case 'addToPantry': {
       const set = new Set(state.pantry);
       action.items.forEach((i) => set.add(i));
       return { ...state, pantry: [...set] };
     }
+
     case 'removePantry':
       return { ...state, pantry: state.pantry.filter((p) => p !== action.item) };
+
     case 'setFilters':
       return { ...state, filters: action.filters };
+
     case 'generate':
       return { ...state, generating: true, pendingGenerate: false };
-    case 'doneGenerate':
-      return { ...state, generating: false, meals: action.meals };
+
+    case 'doneGenerate': {
+      const newNames = (action.meals || []).map((m) => m.name);
+      // Keep last 25 unique meal names to inform avoid-repeats
+      const recentMeals = state.prefs.avoidRepeats
+        ? [...new Set([...newNames, ...state.recentMeals])].slice(0, 25)
+        : state.recentMeals;
+      return { ...state, generating: false, meals: action.meals, recentMeals };
+    }
+
+    case 'clearRecentMeals':
+      return { ...state, recentMeals: [] };
+
     case 'toggleSave': {
       const exists = state.saved.find((s) => s.name === action.meal.name);
       const saved = exists
         ? state.saved.filter((s) => s.name !== action.meal.name)
         : [action.meal, ...state.saved];
-      return { ...state, saved, toast: exists ? 'Removed from saved' : 'Saved to your collection' };
+      return {
+        ...state,
+        saved,
+        toast: exists ? 'Removed from saved' : 'Saved to your collection',
+      };
     }
+
     case 'setFeedback':
-      return { ...state, feedback: { ...state.feedback, [action.meal.name]: action.value } };
+      return {
+        ...state,
+        feedback: { ...state.feedback, [action.meal.name]: action.value },
+      };
+
     case 'setPref':
       return { ...state, prefs: { ...state.prefs, [action.key]: action.value } };
+
     case 'openMeal':
       return { ...state, openMeal: action.meal };
+
     case 'closeMeal':
       return { ...state, openMeal: null };
+
     case 'toast':
       return { ...state, toast: action.text };
+
     case 'clearToast':
       return { ...state, toast: null };
+
     default:
       return state;
   }

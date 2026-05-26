@@ -1,71 +1,83 @@
-// Gemini integration helper (client-side).
-//
-// In production this calls the serverless function at /api/suggest, which
-// holds the GEMINI_API_KEY server-side and returns a structured JSON list of
-// meals. If the API is unavailable or unconfigured, we fall back to local
-// scoring so the app remains functional in dev / offline.
+// Gemini integration — calls /api/suggest with full kitchen context.
+// Falls back to local scoring when API is unavailable or unconfigured.
 
 import { pickMealsLocal, MEAL_LIBRARY } from './meals.js';
 
 /**
- * Ask the backend for 5 meal suggestions.
+ * Ask Gemini (via serverless function) for 5 meal suggestions.
  *
- * @param {Object} input
- * @param {string[]} input.ingredients
- * @param {Object} input.filters
- * @returns {Promise<Array>} — array of meal objects
+ * @param {Object} ctx
+ * @param {string[]} ctx.ingredients  — what the user has right now
+ * @param {string[]} ctx.pantry       — persistent pantry staples
+ * @param {Object}  ctx.filters       — { diet[], goals[], cuisine }
+ * @param {Object}  ctx.prefs         — { diet, cuisine, household, avoidRepeats }
+ * @param {Object}  ctx.feedback      — { [mealName]: 'up' | 'down' }
+ * @param {string[]} ctx.recentMeals  — meal names suggested recently (for avoid-repeats)
  */
-export async function suggestMeals({ ingredients, filters }) {
-  // Try the serverless function first.
+export async function suggestMeals({ ingredients, pantry, filters, prefs, feedback, recentMeals }) {
   try {
     const res = await fetch('/api/suggest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ingredients, filters }),
+      body: JSON.stringify({ ingredients, pantry, filters, prefs, feedback, recentMeals }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (Array.isArray(data?.meals) && data.meals.length > 0) {
       return hydrateMeals(data.meals);
     }
-    throw new Error('Empty meals array');
+    throw new Error('Empty meals — falling back to local');
   } catch (err) {
-    // Fallback to local — keeps dev/offline working.
     if (typeof console !== 'undefined') {
-      console.info('[tava] using local fallback:', err?.message || err);
+      console.info('[tava] local fallback:', err?.message || err);
     }
-    return pickMealsLocal(ingredients, filters);
+    return pickMealsLocal(ingredients, filters, feedback, recentMeals);
   }
 }
 
 /**
- * Backend may return minimal meal objects (name, cook_time, missing, reason).
- * Merge with library entries where the name matches so steps/ingredients
- * still render — otherwise use the response as-is with sensible defaults.
+ * Merge Gemini response with the local library where names match,
+ * so steps/ingredients are always present.
  */
 function hydrateMeals(remote) {
   return remote.map((m) => {
-    const fromLib = MEAL_LIBRARY.find((x) => x.name.toLowerCase() === String(m.name || m.meal_name || '').toLowerCase());
+    const name = m.meal_name || m.name || 'Suggestion';
+    const fromLib = MEAL_LIBRARY.find(
+      (x) => x.name.toLowerCase() === name.toLowerCase()
+    );
+
+    // Build a YouTube search URL from the yt_search field
+    const ytQuery = m.yt_search || m.yt || name;
+    const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(ytQuery)}`;
+
     const base = fromLib || {
-      name: m.meal_name || m.name || 'Suggestion',
-      cook: m.cook_time || m.cook || '—',
+      name,
+      cook: m.cook_time || '—',
       protein: m.protein || 'Med',
       cuisine: m.cuisine || 'Mixed',
       diet: m.diet || 'Veg',
       tags: m.tags || [],
       matches: m.matches || [],
-      missing: m.missing_ingredients || m.missing || [],
-      glyph: m.glyph || '◐',
+      missing: m.missing_ingredients || [],
+      glyph: '◐',
       reason: m.reason || '',
       steps: m.steps || ['Recipe details coming soon.'],
       ingredients: m.ingredients || [],
-      yt: m.yt || m.meal_name || m.name,
+      yt: ytQuery,
+      ytUrl,
     };
+
     return {
       ...base,
-      missing: m.missing_ingredients || m.missing || base.missing,
+      name,
+      cook: m.cook_time || base.cook,
+      missing: m.missing_ingredients || base.missing,
       reason: m.reason || base.reason,
-      cook: m.cook_time || m.cook || base.cook,
+      steps: m.steps?.length ? m.steps : base.steps,
+      ingredients: m.ingredients?.length ? m.ingredients : base.ingredients,
+      matches: m.matches?.length ? m.matches : base.matches,
+      yt: ytQuery,
+      ytUrl,
     };
   });
 }

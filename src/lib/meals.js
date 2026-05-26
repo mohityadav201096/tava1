@@ -260,22 +260,27 @@ export function pickMealsLocal(ingredients, filters, feedback = {}, recentMeals 
   if (goals.includes('High Protein')) pool = pool.filter((m) => m.protein === 'High');
   if (goals.includes('Quick (<30 min)')) pool = pool.filter((m) => m.tags.includes('Quick'));
 
-  // Score each meal
+  // Score each meal — ONLY suggest meals where at least 1 available ingredient is a core match
   pool = pool.map((m) => {
-    const matchCount = m.matches.filter((mm) =>
+    const coreMatches = m.matches.filter((mm) =>
       items.some((it) => it.includes(mm.toLowerCase()) || mm.toLowerCase().includes(it))
-    ).length;
+    );
+    const matchCount = coreMatches.length;
 
     // Penalise disliked and recently seen meals
     const penalty = disliked.has(m.name) ? -5 : recent.has(m.name) ? -2 : 0;
 
-    return { ...m, _score: matchCount + Math.random() * 0.3 + penalty };
+    return { ...m, _score: matchCount + Math.random() * 0.3 + penalty, _coreMatches: matchCount };
   });
 
   pool.sort((a, b) => b._score - a._score);
 
-  // Take top 5, fill with non-duplicate alternates if needed
-  let result = pool.slice(0, 5);
+  // Prefer meals with at least 1 core match; only fall back to zero-match meals if pool is tiny
+  const withMatch = pool.filter((m) => m._coreMatches > 0);
+  const withoutMatch = pool.filter((m) => m._coreMatches === 0);
+  const ranked = [...withMatch, ...withoutMatch];
+
+  let result = ranked.slice(0, 5);
   if (result.length < 5) {
     const fill = MEAL_LIBRARY
       .filter((m) => !result.find((r) => r.name === m.name))

@@ -102,7 +102,7 @@ export function MealCard({ meal, index = 0, onOpen, saved: savedProp = false, on
       {/* Card body */}
       <div className="p-4 flex flex-col gap-2 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-base font-bold leading-snug" style={{ color: 'var(--card-foreground)' }}>
+          <h3 className="text-base font-bold leading-snug line-clamp-2" style={{ color: 'var(--card-foreground)' }}>
             {mealName}
           </h3>
           <span className="shrink-0 inline-flex items-center gap-0.5 text-xs font-bold text-white px-1.5 py-0.5 rounded"

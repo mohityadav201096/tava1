@@ -170,7 +170,7 @@ Maximum 2 missing ingredients per meal. If a dish needs more than 2 things not i
 6. Write a specific YouTube search query that will find a great home-cooking video.
 
 ## JSON OUTPUT
-Return ONLY a JSON array of exactly 5 objects. No markdown, no explanation.
+Return ONLY a JSON array of exactly 10 objects. No markdown, no explanation.
 
 [
   {

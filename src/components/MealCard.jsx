@@ -1,85 +1,159 @@
-import { Icons } from './Icons.jsx';
-import { Card } from './UI.jsx';
-import { MealArt } from './MealArt.jsx';
+import { useState } from 'react';
 
-const ProteinBadge = ({ level }) => {
-  if (!level || level === 'Low') return null;
-  const colors = {
-    High: 'bg-[oklch(0.93_0.05_145)] text-[oklch(0.40_0.10_145)]',
-    Med:  'bg-[oklch(0.94_0.04_80)] text-[oklch(0.42_0.10_80)]',
+const GRADIENTS = [
+  'var(--gradient-card-1)',
+  'var(--gradient-card-2)',
+  'var(--gradient-card-3)',
+  'var(--gradient-card-4)',
+  'var(--gradient-card-5)',
+];
+
+function emojiFor(name = '', cuisine = '') {
+  const s = (name + ' ' + cuisine).toLowerCase();
+  if (/biryani|pulao|rice|fried rice/.test(s))     return '🍚';
+  if (/paneer|curry|masala|gravy|tikka/.test(s))    return '🍛';
+  if (/dosa|idli|uttapam|south/.test(s))            return '🥞';
+  if (/roti|paratha|naan|chapati|atta/.test(s))     return '🫓';
+  if (/dal|sambar|rasam|soup/.test(s))              return '🍲';
+  if (/noodle|hakka|chow|chinese/.test(s))          return '🍜';
+  if (/pasta|italian|pizza/.test(s))                return '🍝';
+  if (/egg|omelet|bhurji/.test(s))                  return '🍳';
+  if (/chicken|mutton|fish|kebab|non.?veg/.test(s)) return '🍗';
+  if (/salad|raita|chutney/.test(s))                return '🥗';
+  if (/sandwich|toast|bread/.test(s))               return '🥪';
+  if (/sweet|kheer|halwa|laddu|dessert/.test(s))    return '🍮';
+  return '🍽️';
+}
+
+function fakeRating(name = '') {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return (4 + ((h % 90) / 100)).toFixed(1);
+}
+
+export function MealCard({ meal, index = 0, onOpen, saved: savedProp = false, onSave, onThumbDown }) {
+  const [saved, setSaved] = useState(savedProp);
+
+  const handleSave = (e) => {
+    e.stopPropagation();
+    setSaved((v) => !v);
+    onSave?.(meal);
   };
+
+  const gradient = GRADIENTS[index % GRADIENTS.length];
+  const emoji    = emojiFor(meal.name, meal.cuisine);
+  const rating   = fakeRating(meal.name);
+
+  // Normalise field names — Tava uses .name/.cook/.missing; new UI uses .meal_name/.cook_time/.missing_ingredients
+  const mealName  = meal.name  || meal.meal_name  || '';
+  const cookTime  = meal.cook  || meal.cook_time  || '';
+  const missing   = meal.missing || meal.missing_ingredients || [];
+  const haveAll   = missing.length === 0;
+  const reason    = meal.reason || '';
+  const cuisine   = meal.cuisine || '';
+  const protein   = meal.protein || '';
+
+  const ytQuery = meal.yt_search || meal.yt || (mealName + ' Indian recipe');
+  const ytUrl   = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(ytQuery);
+
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-[3px] rounded-full text-[11px] font-semibold tracking-[0.01em] ${colors[level] || colors.Med}`}>
-      <Icons.Flame size={11} sw={2} />
-      {level === 'High' ? 'High protein' : 'Protein'}
-    </span>
-  );
-};
+    <article
+      className="group rounded-3xl overflow-hidden flex flex-col transition-transform hover:-translate-y-1"
+      style={{
+        backgroundColor: 'var(--card)',
+        boxShadow: 'var(--shadow-card)',
+        border: '1px solid var(--border)',
+      }}
+    >
+      {/* Gradient image area */}
+      <div className="relative h-40 flex items-center justify-center text-6xl"
+        style={{ background: gradient }}>
 
-export function MealCard({ meal, onOpen, feedback, saved, onSave, onFeedback }) {
-  return (
-    <Card padded={false}>
-      <div className="p-3.5 flex gap-3.5 items-start">
-        <MealArt meal={meal} size={72} radius={16} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-1.5">
-            <h3 className="font-serif text-[22px] m-0 font-normal leading-[1.1] tracking-[-0.01em]">
-              {meal.name}
-            </h3>
-            <button
-              onClick={onSave}
-              aria-label="Save"
-              className={`tap p-0.5 shrink-0 bg-transparent border-0 cursor-pointer ${saved ? 'text-accent' : 'text-muted'}`}
-            >
-              {saved ? <Icons.HeartF size={20} /> : <Icons.Heart size={20} />}
-            </button>
-          </div>
-          <div className="flex gap-2.5 mt-1.5 items-center flex-wrap">
-            <span className="inline-flex items-center gap-1 text-[12.5px] text-ink-2 font-mono">
-              <Icons.Clock size={12} sw={1.8} />
-              {meal.cook}
-            </span>
-            <ProteinBadge level={meal.protein} />
-            <span className="text-[12.5px] text-muted">{meal.cuisine}</span>
-          </div>
-          <p className="text-[13.5px] text-ink-2 m-0 mt-2.5 leading-[1.4]">{meal.reason}</p>
-        </div>
-      </div>
+        <span style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>{emoji}</span>
 
-      {meal.missing && meal.missing.length > 0 && (
-        <div className="px-3.5 py-2 border-t border-line-2 bg-[oklch(0.96_0.018_80)] flex items-center gap-2 text-xs text-ink-2">
-          <span className="font-mono uppercase text-[10px] tracking-[0.1em] text-muted">You'll need</span>
-          <span>{meal.missing.join(' · ')}</span>
-        </div>
-      )}
-
-      <div className="flex px-2 py-2.5 pl-3.5 border-t border-line-2 items-center justify-between">
-        <button
-          onClick={onOpen}
-          className="tap inline-flex items-center gap-2 bg-transparent border-0 cursor-pointer text-ink text-sm font-medium px-1 py-1.5"
-        >
-          <span className="w-[22px] h-[22px] rounded-full bg-ink grid place-items-center text-white">
-            <Icons.Play size={11} />
-          </span>
-          Open recipe
+        {/* Save / heart button */}
+        <button onClick={handleSave} aria-label="Save meal"
+          className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all"
+          style={{
+            backgroundColor: saved ? 'var(--primary)' : 'rgba(255,255,255,0.85)',
+            color: saved ? 'white' : 'var(--foreground)',
+            backdropFilter: 'blur(4px)',
+          }}>
+          {saved ? '♥' : '♡'}
         </button>
-        <div className="flex gap-0.5">
-          <button
-            onClick={() => onFeedback(feedback === 'up' ? null : 'up')}
-            aria-label="Like"
-            className={`tap w-8 h-8 rounded-full bg-transparent border-0 grid place-items-center cursor-pointer ${feedback === 'up' ? 'text-[var(--leaf)]' : 'text-muted'}`}
-          >
-            <Icons.ThumbU size={16} />
-          </button>
-          <button
-            onClick={() => onFeedback(feedback === 'down' ? null : 'down')}
-            aria-label="Dislike"
-            className={`tap w-8 h-8 rounded-full bg-transparent border-0 grid place-items-center cursor-pointer ${feedback === 'down' ? 'text-accent' : 'text-muted'}`}
-          >
-            <Icons.ThumbD size={16} />
-          </button>
-        </div>
+
+        {/* Ready to cook badge */}
+        {haveAll && (
+          <span className="absolute top-3 left-3 text-xs font-bold uppercase tracking-wide px-2 py-1 rounded-full"
+            style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: 'var(--brand-green)', backdropFilter: 'blur(4px)' }}>
+            Ready to cook
+          </span>
+        )}
+
+        {/* Cook time */}
+        {cookTime && (
+          <span className="absolute bottom-3 left-3 text-white text-xs font-semibold px-2 py-1 rounded-full"
+            style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+            ⏱ {cookTime}
+          </span>
+        )}
       </div>
-    </Card>
+
+      {/* Card body */}
+      <div className="p-4 flex flex-col gap-2 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-base font-bold leading-snug" style={{ color: 'var(--card-foreground)' }}>
+            {mealName}
+          </h3>
+          <span className="shrink-0 inline-flex items-center gap-0.5 text-xs font-bold text-white px-1.5 py-0.5 rounded"
+            style={{ backgroundColor: 'var(--brand-green)' }}>
+            ★ {rating}
+          </span>
+        </div>
+
+        {(cuisine || protein) && (
+          <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+            {cuisine}{cuisine && protein ? ' · ' : ''}
+            {protein === 'High' ? 'High protein' : protein === 'Medium' ? 'Balanced' : protein === 'Low' ? 'Light' : ''}
+          </p>
+        )}
+
+        {reason && (
+          <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--muted-foreground)' }}>
+            {reason}
+          </p>
+        )}
+
+        {missing.length > 0 && (
+          <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+            <span className="font-semibold" style={{ color: 'var(--foreground)' }}>Need:</span>{' '}
+            {missing.join(', ')}
+          </p>
+        )}
+
+        {/* Action buttons */}
+        <div className="mt-auto pt-3 flex gap-2">
+          <button onClick={() => onOpen?.(meal)}
+            className="flex-1 text-xs font-semibold px-3 py-2.5 rounded-full transition-colors"
+            style={{ backgroundColor: 'var(--secondary)', color: 'var(--secondary-foreground)' }}>
+            Recipe
+          </button>
+          <a href={ytUrl} target="_blank" rel="noreferrer"
+            className="flex-1 text-center text-xs font-semibold px-3 py-2.5 rounded-full transition-opacity"
+            style={{ backgroundColor: 'var(--primary)', color: 'white' }}>
+            ▶ Watch
+          </a>
+        </div>
+
+        {/* Thumbs down */}
+        {onThumbDown && (
+          <button onClick={() => onThumbDown?.(meal)}
+            className="text-center text-xs transition-colors mt-1"
+            style={{ color: 'var(--muted-foreground)' }}>
+            👎 Not this
+          </button>
+        )}
+      </div>
+    </article>
   );
 }

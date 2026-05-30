@@ -1,18 +1,17 @@
 // App-wide state reducer.
-import { SAMPLE_SAVED } from './meals.js';
 
 export const initialState = {
   screen: 'home',
-  ingredients: ['paneer', 'onion', 'tomato'],  // overwritten by localStorage hydration on load
-  pantry: ['rice', 'atta', 'ginger', 'garlic', 'turmeric', 'cumin', 'coriander powder', 'salt', 'oil'],
+  ingredients: [],   // empty on first launch — hydrated from localStorage if present
+  pantry: [],        // empty on first launch — user builds this up over time
   filters: { diet: 'any', highProtein: false, quick: false, cuisine: 'Mixed' },
   meals: [],
   generating: false,
   feedback: {},
-  saved: SAMPLE_SAVED.map((m) => ({ ...m })),
+  saved: [],         // empty on first launch — user saves their own meals
   prefs: {
-    diet: 'Veg',
-    cuisine: 'North Indian',
+    diet: 'any',           // 'any' | 'veg' | 'non-veg' — lowercase to match UI buttons
+    cuisine: 'Mixed',
     household: 2,
     pantryMemory: true,
     avoidRepeats: true,
@@ -56,8 +55,8 @@ export function reducer(state, action) {
     case 'thumbDown':
       return {
         ...state,
-        feedback: { ...state.feedback, [action.meal.name]: 'dislike' },
-        toast: 'Got it — won\'t suggest similar meals',
+        feedback: { ...state.feedback, [action.meal.name]: 'down' },
+        toast: "Got it — won't suggest similar meals",
       };
 
     case 'generate':

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MealCard } from '../components/MealCard.jsx';
-import { parseIngredients, toText, SUGGESTED_CHIPS } from '../lib/meals.js';
+import { parseIngredients, toText } from '../lib/meals.js';
 
 const QUICK_CHIPS = [
   { name: 'Onion',   emoji: '🧅' },

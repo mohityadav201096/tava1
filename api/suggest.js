@@ -4,8 +4,8 @@
 // Response: { meals: [...] }
 //
 // Set GEMINI_API_KEY in your Vercel project → Environment Variables.
-// Optional: GEMINI_MODEL (default: gemini-2.0-flash)
-// updated
+// Optional: GEMINI_MODEL (default: gemini-2.5-flash)
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -81,19 +81,34 @@ export default async function handler(req, res) {
 // ─── Prompt ────────────────────────────────────────────────────────────────
 
 function buildPrompt({ ingredients, pantry, filters, prefs, feedback, recentMeals }) {
-  const { diet: filterDiet = [], goals = [], cuisine: filterCuisine = 'Any' } = filters;
-  const { diet: prefDiet = 'Veg', cuisine: prefCuisine = 'Any', household = 2 } = prefs;
+  // New filter format: { diet: 'any'|'veg'|'non-veg', highProtein: bool, quick: bool, cuisine: string }
+  const {
+    diet: filterDiet = 'any',
+    highProtein = false,
+    quick = false,
+    cuisine: filterCuisine = 'Mixed',
+  } = filters || {};
+  const { diet: prefDiet = 'any', cuisine: prefCuisine = 'Mixed', household = 2 } = prefs || {};
 
+  // Accept both 'down' (legacy) and 'dislike' (new thumbDown action)
   const disliked = Object.entries(feedback || {})
-    .filter(([, v]) => v === 'down')
+    .filter(([, v]) => v === 'down' || v === 'dislike')
     .map(([name]) => name);
 
   const skipList = [...new Set([...(recentMeals || []), ...disliked])].slice(0, 20);
 
-  const effectiveDiet = filterDiet.length ? filterDiet.join(', ') : prefDiet || 'any';
+  const effectiveDiet =
+    filterDiet && filterDiet !== 'any' ? filterDiet :
+    prefDiet && prefDiet !== 'any' ? prefDiet : 'any';
+
   const effectiveCuisine =
-    filterCuisine !== 'Any' ? filterCuisine :
-    prefCuisine !== 'Any' ? prefCuisine : 'any Indian';
+    filterCuisine && filterCuisine !== 'Mixed' ? filterCuisine :
+    prefCuisine && prefCuisine !== 'Mixed' ? prefCuisine : 'any Indian';
+
+  const goals = [
+    highProtein ? 'High Protein' : null,
+    quick       ? 'Quick (under 30 min)' : null,
+  ].filter(Boolean);
 
   const pantryLine = pantry.length
     ? `Standard pantry always available: ${pantry.join(', ')}, plus common spices (salt, oil, turmeric, cumin, coriander powder, garam masala, chilli powder, mustard seeds)`

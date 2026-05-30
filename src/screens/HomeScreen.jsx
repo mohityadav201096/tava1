@@ -355,7 +355,7 @@ export function HomeScreen({ state, dispatch, goTo, openRecipe }) {
           {/* Skeletons while loading */}
           {loading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(5)].map((_, i) => (
+              {[...Array(10)].map((_, i) => (
                 <div key={i} className="rounded-3xl overflow-hidden border animate-pulse"
                   style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
                   <div className="h-40" style={{ backgroundColor: 'var(--muted)' }} />

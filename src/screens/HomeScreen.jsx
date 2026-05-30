@@ -337,7 +337,7 @@ export function HomeScreen({ state, dispatch, goTo, openRecipe }) {
 
             <button onClick={onSuggest}
               disabled={loading || current.length === 0}
-              className="w-full md:w-auto font-bold px-7 py-3.5 rounded-full transition-all"
+              className="w-full md:w-auto font-bold px-7 py-3.5 rounded-full transition-all whitespace-nowrap"
               style={{
                 background: (loading || current.length === 0) ? 'var(--muted)' : 'var(--gradient-hero)',
                 color: 'white',

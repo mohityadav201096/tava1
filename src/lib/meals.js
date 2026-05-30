@@ -244,21 +244,33 @@ export function toText(arr) {
  */
 export function pickMealsLocal(ingredients, filters, feedback = {}, recentMeals = []) {
   const items = (ingredients || []).map((s) => s.toLowerCase().trim());
-  const { diet = [], goals = [], cuisine = 'Any' } = filters || {};
+  const {
+    diet = 'any',
+    highProtein = false,
+    quick = false,
+    cuisine = 'Mixed',
+  } = filters || {};
 
-  // Disliked meal names
+  // Disliked meal names — accept both 'down' (legacy) and 'dislike' (new)
   const disliked = new Set(
-    Object.entries(feedback || {}).filter(([, v]) => v === 'down').map(([n]) => n)
+    Object.entries(feedback || {})
+      .filter(([, v]) => v === 'down' || v === 'dislike')
+      .map(([n]) => n)
   );
   const recent = new Set(recentMeals || []);
 
   let pool = MEAL_LIBRARY.slice();
 
   // Apply filters
-  if (diet.length) pool = pool.filter((m) => diet.includes(m.diet));
-  if (cuisine && cuisine !== 'Any') pool = pool.filter((m) => m.cuisine === cuisine);
-  if (goals.includes('High Protein')) pool = pool.filter((m) => m.protein === 'High');
-  if (goals.includes('Quick (<30 min)')) pool = pool.filter((m) => m.tags.includes('Quick'));
+  if (diet && diet !== 'any') {
+    if (diet === 'veg')     pool = pool.filter((m) => m.diet === 'Veg' || m.diet === 'Vegan');
+    if (diet === 'non-veg') pool = pool.filter((m) => m.diet === 'Non-Veg' || m.diet === 'Egg');
+  }
+  if (cuisine && cuisine !== 'Mixed' && cuisine !== 'Any') {
+    pool = pool.filter((m) => m.cuisine === cuisine);
+  }
+  if (highProtein) pool = pool.filter((m) => m.protein === 'High');
+  if (quick)       pool = pool.filter((m) => m.tags.includes('Quick'));
 
   // Score each meal — ONLY suggest meals where at least 1 available ingredient is a core match
   pool = pool.map((m) => {

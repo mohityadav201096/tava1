@@ -5,7 +5,7 @@ export const initialState = {
   screen: 'home',
   ingredients: ['paneer', 'onion', 'tomato'],  // overwritten by localStorage hydration on load
   pantry: ['rice', 'atta', 'ginger', 'garlic', 'turmeric', 'cumin', 'coriander powder', 'salt', 'oil'],
-  filters: { diet: [], goals: [], cuisine: 'Any' },
+  filters: { diet: 'any', highProtein: false, quick: false, cuisine: 'Mixed' },
   meals: [],
   generating: false,
   feedback: {},
@@ -46,6 +46,19 @@ export function reducer(state, action) {
 
     case 'setFilters':
       return { ...state, filters: action.filters };
+
+    case 'setFilter':
+      return { ...state, filters: { ...state.filters, [action.key]: action.value } };
+
+    case 'clearPantry':
+      return { ...state, pantry: [] };
+
+    case 'thumbDown':
+      return {
+        ...state,
+        feedback: { ...state.feedback, [action.meal.name]: 'dislike' },
+        toast: 'Got it — won\'t suggest similar meals',
+      };
 
     case 'generate':
       return { ...state, generating: true, pendingGenerate: false };

@@ -11,7 +11,6 @@ export function RecipeSheet({ meal, onClose, saved, onSave }) {
   const reason   = meal.reason || '';
   const ytQuery  = meal.yt_search || meal.yt || (mealName + ' Indian recipe');
   const ytUrl    = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(ytQuery);
-  const ytEmbed  = 'https://www.youtube.com/embed?listType=search&list=' + encodeURIComponent(mealName + ' recipe');
 
   // Close on Escape
   useEffect(() => {
@@ -72,17 +71,31 @@ export function RecipeSheet({ meal, onClose, saved, onSave }) {
             </div>
           </div>
 
-          {/* YouTube embed */}
-          <div className="rounded-2xl overflow-hidden mb-5"
-            style={{ aspectRatio: '16/9', backgroundColor: 'var(--muted)' }}>
-            <iframe
-              src={ytEmbed}
-              title={mealName}
-              className="w-full h-full"
-              allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
+          {/* YouTube search card */}
+          <a
+            href={ytUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-4 rounded-2xl p-4 mb-5 transition-opacity hover:opacity-90"
+            style={{
+              background: 'linear-gradient(135deg, #FF0000 0%, #c4302b 100%)',
+              textDecoration: 'none',
+            }}
+          >
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center shrink-0"
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)' }}
+            >
+              <span style={{ fontSize: '1.5rem', color: 'white' }}>▶</span>
+            </div>
+            <div>
+              <p className="font-bold text-white text-sm">Watch on YouTube</p>
+              <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                {ytQuery}
+              </p>
+            </div>
+            <span className="ml-auto text-white text-xl">↗</span>
+          </a>
 
           {/* Why this */}
           {reason && (
